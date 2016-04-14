@@ -75,7 +75,13 @@ Json toJson(ofAbstractParameter& param){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FROM JSON
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<ofAbstractParameter*> jsonToGroup(Json json, std::string name = "", ofParameterGroup* parent=NULL){
+void jsonCacheName(Json& json){
+	for(auto& j: json){
+		ofLog() << j;
+	}
+}
+
+std::vector<ofAbstractParameter*> jsonToGroup(Json json, ofParameterGroup* parent=NULL){
 	if(json["type"] !="group"){
 		ofLogWarning() << "Wrong json format" << json;
 		return {};
@@ -92,5 +98,6 @@ std::vector<ofAbstractParameter *> syncToJson(string jsonStr, ofParameterGroup &
 }
 
 std::vector<ofAbstractParameter *> syncToJson(Json json, ofParameterGroup &params){
+	jsonCacheName(json);
 	return jsonToGroup(json);
 }

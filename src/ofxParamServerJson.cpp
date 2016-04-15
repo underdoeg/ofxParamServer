@@ -162,6 +162,7 @@ void fillMinMax(ofParameter<Type>* param, Json& j){
 template<typename Type>
 ofAbstractParameter* jsonToGeneric(Json& json){
 	ofParameter<Type>* ret = new ofParameter<Type>();
+	ret->set(json["value"].get<Type>());
 	if(json.find("min") != json.end()){
 		ret->setMin(json["min"].get<Type>());
 	}
@@ -220,10 +221,12 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json){
 		if(type == "group"){
 			std::vector<ofAbstractParameter*> params = jsonToGroup(j);
 			ret.insert(ret.end(), params.begin(), params.end());
+			group->add(*params[0]);
 		}else{
 			if(jsonHandlers.find(type) != jsonHandlers.end()){
 				ofAbstractParameter* param = jsonHandlers[type](j);
 				param->setName(j["name"]);
+				group->add(*param);
 				ret.push_back(param);
 			}else{
 				ofLogWarning("ofxParamServer") << "unknwon json type " << type;

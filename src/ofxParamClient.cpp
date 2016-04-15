@@ -56,6 +56,7 @@ void ofxParamClient::sync(){
 	url << serverIp << ":" << httpPort;
 	std::string res = curlRead(url.str());
 	std::vector<ofAbstractParameter*> params = syncToJson(res, getParams());
+	paramGroup = static_cast<ofParameterGroup&>(*params[0]);
 }
 
 ofParameterGroup &ofxParamClient::getParams(){

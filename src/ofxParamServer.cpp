@@ -10,13 +10,18 @@ static int answerHttp(void *cls, struct MHD_Connection *connection,
 
 	Json j = toJson(paramServer->getParameters());
 
-	const char *page = j.dump(4).c_str();
+	std::string pageStr = j.dump();
 	struct MHD_Response *response;
 	int ret;
 
-	response = MHD_create_response_from_buffer (strlen (page), (void *) page, MHD_RESPMEM_PERSISTENT);
-	ret = MHD_queue_response (connection, MHD_HTTP_OK, response);
-	MHD_destroy_response (response);
+	response = MHD_create_response_from_buffer(pageStr.size(), (void *)pageStr.c_str(), MHD_RESPMEM_MUST_COPY);
+
+	std::string mime = "application/json";
+
+	MHD_add_response_header(response, MHD_HTTP_HEADER_CONTENT_TYPE, mime.c_str());
+
+	ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+	MHD_destroy_response(response);
 
 	return ret;
 }

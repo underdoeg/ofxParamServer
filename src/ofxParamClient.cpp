@@ -37,7 +37,7 @@ std::string curlRead(std::string url){
 /////////////////////////////////////////////////
 
 ofxParamClient::ofxParamClient(){
-
+	bSynced = false;
 }
 
 ofxParamClient::~ofxParamClient(){
@@ -52,11 +52,20 @@ void ofxParamClient::setup(string ip, int oscP, int httpP){
 }
 
 void ofxParamClient::sync(){
+	bSynced = false;
 	std::stringstream url;
 	url << serverIp << ":" << httpPort;
 	std::string res = curlRead(url.str());
+	if(res.size() == 0)
+		return;
+
+	bSynced = true;
 	std::vector<ofAbstractParameter*> params = syncToJson(res, getParams());
 	paramGroup = static_cast<ofParameterGroup&>(*params[0]);
+}
+
+bool ofxParamClient::isSynced(){
+	return bSynced;
 }
 
 ofParameterGroup &ofxParamClient::getParams(){

@@ -15,9 +15,12 @@ public:
 
 	void sync();
 
+	bool isSynced();
+
 	ofParameterGroup& getParams();
 
 private:
+	bool bSynced;
 	std::string serverIp;
 	int oscPort;
 	int httpPort;

@@ -33,9 +33,14 @@ ofxParamServer::ofxParamServer():params(nullptr){
 
 }
 
-void ofxParamServer::setup(ofParameterGroup& p, int port, int httpPort){
+void ofxParamServer::setup(ofParameterGroup& p, const std::string clientIp, int portLocal, int portClients, int httpPort){
 	params = &p;
 	httpDaemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY, httpPort, NULL, NULL, &answerHttp, this, MHD_OPTION_END);
+	//ofAddListener(params->parameterChangedE(), this, &ofxParamServer::onParamChanged);
+
+	sync.setup(getParameters(), portLocal, clientIp, portClients);
+
+	ofAddListener(ofEvents().update, this, &ofxParamServer::update);
 }
 
 ofParameterGroup &ofxParamServer::getParameters(){
@@ -44,4 +49,12 @@ ofParameterGroup &ofxParamServer::getParameters(){
 	}
 
 	return *params;
+}
+
+void ofxParamServer::onParamChanged(ofAbstractParameter &param){
+	ofLogNotice("ofxParameterServer") << "param changed";
+}
+
+void ofxParamServer::update(ofEventArgs& args){
+	sync.update();
 }

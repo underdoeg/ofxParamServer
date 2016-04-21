@@ -1,5 +1,5 @@
 #include "ofxParamClient.h"
-
+#include "ofxParamServerUtils.h"
 
 
 size_t curlReadCallback(void *contents, size_t size, size_t nmemb, std::string *s){
@@ -38,20 +38,33 @@ std::string curlRead(std::string url){
 
 ofxParamClient::ofxParamClient(){
 	bSynced = false;
+
 }
 
 ofxParamClient::~ofxParamClient(){
 
 }
 
-void ofxParamClient::setup(string ip, int oscP, int httpP){
+void ofxParamClient::setup(string ip, int oscPLocal, int oscPRemote, int httpP){
 	serverIp = ip;
-	oscPort = oscP;
+	oscPortLocal = oscPLocal;
+	oscPortServer = oscPRemote;
 	httpPort = httpP;
 	sync();
+/*
+	ofEvents().update.newListener([&](ofEventArgs&){
+		if(isSynced()){
+
+		};
+	});
+*/
 }
 
 void ofxParamClient::sync(){
+
+	//ofRemoveListener(getParams().parameterChangedE(), this, &ofxParamClient::onParamChanged);
+	//
+
 	bSynced = false;
 	std::stringstream url;
 	url << serverIp << ":" << httpPort;
@@ -60,8 +73,18 @@ void ofxParamClient::sync(){
 		return;
 
 	bSynced = true;
-	std::vector<ofAbstractParameter*> params = syncToJson(res, getParams());
-	paramGroup = static_cast<ofParameterGroup&>(*params[0]);
+	params = syncToJson(res, getParams());
+	//paramGroup = static_cast<ofParameterGroup*>(params[0]);
+
+	//ofAddListener(getParams().parameterChangedE(), this, &ofxParamClient::onParamChanged);
+
+	paramSync.setup(getParams(), oscPortLocal, serverIp, oscPortServer);
+}
+
+void ofxParamClient::update(){
+	if(isSynced()){
+		paramSync.update();
+	}
 }
 
 bool ofxParamClient::isSynced(){
@@ -70,4 +93,8 @@ bool ofxParamClient::isSynced(){
 
 ofParameterGroup &ofxParamClient::getParams(){
 	return paramGroup;
+}
+
+void ofxParamClient::onParamChanged(ofAbstractParameter &param){
+	std::string path = getPath(param);
 }

@@ -123,14 +123,21 @@ static void setupParamHandlers(){
 Json toJson(ofAbstractParameter& param){
 	setupParamHandlers();
 
+
+	if(param.isReadOnly()){
+		ofLogWarning("ofxParamServer") << "Read Only parameters are not implemented";
+		return {};
+	}
+
 	std::string type = param.type();
 	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
 		ofLogWarning("ofxParamServer") << "Type " << type << " not implemented";
 		return {};
 	}
+
 	Json json;
-	paramToJsonHandlers[type](param, json);
 	json["name"] = param.getName().size() ? param.getName() : "no name";
+	paramToJsonHandlers[type](param, json);
 	return json;
 }
 
@@ -202,7 +209,7 @@ void setupJsonHandlers(){
 	bJsonHandlersSetup = true;
 }
 
-std::vector<ofAbstractParameter*> jsonToGroup(Json& json){
+std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* group = nullptr){
 	setupJsonHandlers();
 
 	if(json["type"] !="group"){
@@ -210,27 +217,34 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json){
 		return {};
 	}
 
-	ofParameterGroup* group = new ofParameterGroup();
+	if(!group){
+		group = new ofParameterGroup;
+	}
+
 	group->setName(json["name"].get<std::string>());
 
 	std::vector<ofAbstractParameter*> ret = {group};
 
 	//add children
 	for(auto& j: json["children"]){
-		std::string type = j["type"];
-		if(type == "group"){
-			std::vector<ofAbstractParameter*> params = jsonToGroup(j);
-			ret.insert(ret.end(), params.begin(), params.end());
-			group->add(*params[0]);
-		}else{
-			if(jsonHandlers.find(type) != jsonHandlers.end()){
-				ofAbstractParameter* param = jsonHandlers[type](j);
-				param->setName(j["name"]);
-				group->add(*param);
-				ret.push_back(param);
+		if(!j.is_null()){
+			std::string type = j["type"];
+			if(type == "group"){
+				std::vector<ofAbstractParameter*> params = jsonToGroup(j);
+				ret.insert(ret.end(), params.begin(), params.end());
+				group->add(*params[0]);
 			}else{
-				ofLogWarning("ofxParamServer") << "unknwon json type " << type;
+				if(jsonHandlers.find(type) != jsonHandlers.end()){
+					ofAbstractParameter* param = jsonHandlers[type](j);
+					param->setName(j["name"]);
+					group->add(*param);
+					ret.push_back(param);
+				}else{
+					ofLogWarning("ofxParamServer") << "unknwon json type " << type;
+				}
 			}
+		}else{
+			ofLogWarning("ofxParamServer") << "json is null -> SKIPPING";
 		}
 	}
 
@@ -248,5 +262,5 @@ std::vector<ofAbstractParameter *> syncToJson(string jsonStr, ofParameterGroup &
 
 std::vector<ofAbstractParameter *> syncToJson(Json json, ofParameterGroup &params){
 	setupJsonHandlers();
-	return jsonToGroup(json);
+	return jsonToGroup(json, &params);
 }

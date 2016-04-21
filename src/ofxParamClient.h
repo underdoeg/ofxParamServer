@@ -6,26 +6,35 @@
 #include "ofxParamServerJson.h"
 #include "curl/curl.h"
 
+#include <ofxOscParameterSync.h>
+
 class ofxParamClient{
 public:
     ofxParamClient();
 	~ofxParamClient();
 
-	void setup(std::string serverIp="127.0.0.1", int oscPort=OSC_PORT, int httpPort=HTTP_PORT);
+	void setup(std::string serverIp="127.0.0.1", int oscPortLocal=OSC_PORT_CLIENT, int oscPortServer=OSC_PORT_SERVER, int httpPort=HTTP_PORT);
 
 	void sync();
+
+	void update();
 
 	bool isSynced();
 
 	ofParameterGroup& getParams();
 
 private:
+	void onParamChanged(ofAbstractParameter& param);
+
 	bool bSynced;
 	std::string serverIp;
-	int oscPort;
+	int oscPortLocal;
+	int oscPortServer;
 	int httpPort;
 	ofParameterGroup paramGroup;
 	std::vector<ofAbstractParameter*> params;
+
+	ofxOscParameterSync paramSync;
 };
 
 #endif // OFXPARAMCLIENT_H

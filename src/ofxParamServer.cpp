@@ -47,7 +47,6 @@ ofParameterGroup &ofxParamServer::getParameters(){
 	if(!params) {
 		throw "No parameters set";
 	}
-
 	return *params;
 }
 

@@ -65,6 +65,7 @@ void ofxParamClient::sync(){
 	//ofRemoveListener(getParams().parameterChangedE(), this, &ofxParamClient::onParamChanged);
 	//
 
+
 	bSynced = false;
 	std::stringstream url;
 	url << serverIp << ":" << httpPort;

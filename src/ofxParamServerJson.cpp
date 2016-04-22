@@ -62,7 +62,7 @@ void groupToJson(ofAbstractParameter& param, Json& json){
 	json["type"] = "group";
 	json["children"] = {};
 	for(auto p:params){
-		json["children"][getName(*p)] = toJson(*p);
+		json["children"].push_back(toJson(*p));
 	}
 }
 
@@ -174,7 +174,7 @@ ofAbstractParameter* jsonToGeneric(Json& json){
 		ret->setMin(json["min"].get<Type>());
 	}
 	if(json.find("max") != json.end()){
-		ret->setMin(json["max"].get<Type>());
+		ret->setMax(json["max"].get<Type>());
 	}
 	return ret;
 }

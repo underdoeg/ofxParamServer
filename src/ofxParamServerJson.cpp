@@ -112,6 +112,7 @@ static void setupParamHandlers(){
 	addParamHandler<bool>();
 	addParamHandlerMinMax<int>();
 	addParamHandlerMinMax<float>();
+	addParamHandlerMinMax<double>();
 	addParamHandler<std::string>();
 
 	bParamHandlerSetup = true;
@@ -125,13 +126,13 @@ Json toJson(ofAbstractParameter& param){
 
 
 	if(param.isReadOnly()){
-		ofLogWarning("ofxParamServer") << "Read Only parameters are not implemented";
+		ofLogWarning("ofxParamServerJson") << "Read Only parameters are not implemented";
 		return {};
 	}
 
 	std::string type = param.type();
 	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
-		ofLogWarning("ofxParamServer") << "Type " << type << " not implemented";
+		ofLogWarning("ofxParamServerJson") << "Type " << type << " not implemented";
 		return {};
 	}
 

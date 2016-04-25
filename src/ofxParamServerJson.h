@@ -30,6 +30,13 @@ void ofxParamServerAddType(ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJ
 	ofxParamServerAddType(typeid(Type).name(), typeid(Type).name(), toJson, fromJson);
 }
 
+template<typename Type>
+void ofxParamServerAddType(){
+	ofLogError("ofxParamServerAddType") <<  "you must provide an overrided version of this function with your parameter type. Like this:";
+	ofLogError("ofxParamServerAddType") <<  "template<>";
+	ofLogError("ofxParamServerAddType") <<  "ofxParamServerAddType<YourType>(){....}";
+}
+
 //template<typename Type>;
 //void addCustomParamServerType(std::function<);
 

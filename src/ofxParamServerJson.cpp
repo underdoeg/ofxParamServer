@@ -35,7 +35,6 @@ void fillMinMax(ofParameter<Type>& param, Json& j){
 
 void groupToJson(ofAbstractParameter& param, Json& json){
 	ofParameterGroup& params = static_cast<ofParameterGroup&>(param);
-	//json["type"] = "group";
 	json["children"] = {};
 	for(auto p:params){
 		json["children"].push_back(toJson(*p));
@@ -45,14 +44,12 @@ void groupToJson(ofAbstractParameter& param, Json& json){
 template<typename Type>
 void toJson(ofAbstractParameter& p, Json& json){
 	ofParameter<Type> param = p.cast<Type>();
-	//json["type"] = getTypename<Type>();
 	json["value"] = param.get();
 }
 
 template<typename Type>
 void toJsonMinMax(ofAbstractParameter& p, Json& json){
 	ofParameter<Type> param = p.cast<Type>();
-	//json["type"] = getTypename<Type>();
 	json["value"] = param.get();
 	fillMinMax(param, json);
 }
@@ -144,6 +141,7 @@ Json toJson(ofAbstractParameter& param){
 	}
 
 	std::string type = param.type();
+	ofLog() << param.getName() << " - " << type;
 	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
 		ofLogWarning("ofxParamServerJson") << "Type " << type << " not implemented";
 		return {};
@@ -183,7 +181,6 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* grou
 	for(auto& j: json["children"]){
 		if(!j.is_null()){
 			std::string type = j["type"];
-			ofLog() << type;
 			if(type == "group"){
 				std::vector<ofAbstractParameter*> params = jsonToGroup(j);
 				ret.insert(ret.end(), params.begin(), params.end());

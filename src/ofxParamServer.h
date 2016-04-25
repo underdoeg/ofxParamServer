@@ -25,4 +25,5 @@ private:
 	ofxOscParameterSync sync;
 };
 
+
 #endif // OFXPARAMSERVER_H

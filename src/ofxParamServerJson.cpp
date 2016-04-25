@@ -1,33 +1,24 @@
 #include "ofxParamServerJson.h"
 
+static std::map<std::string, ofxParamToJsonFunc> paramToJsonHandlers;
+static std::map<std::string, ofxParamFromJsonFunc> jsonToParamHandlers;
+static std::map<std::string, std::string> jsonTypeNames;
+static bool bHandlersSetup = false;
 
-static std::map<size_t, std::string> typeNames;
-static bool bTypenamesSetup = false;
 
-void setupTypenames(){
-	if(bTypenamesSetup)
-		return;
+///////////////////////////////////// TO JSON HELPERS
 
-	////////////////////////////////
-	/////////// ADD NEW TYPES HERE
-	typeNames[typeid(bool).hash_code()] = "bool";
-	typeNames[typeid(int).hash_code()] = "int";
-	typeNames[typeid(float).hash_code()] = "float";
-	typeNames[typeid(double).hash_code()] = "double";
-	typeNames[typeid(std::string).hash_code()] = "string";
-
-	bTypenamesSetup = true;
-}
-
-std::string getTypename(size_t hash){
-	if(typeNames.find(hash) != typeNames.end())
-		return typeNames[hash];
-	return "unknown";
+std::string getTypename(std::string name){
+	std::string ret = name;
+	if(jsonTypeNames.find(ret) != jsonTypeNames.end()){
+		ret = jsonTypeNames[ret];
+	}
+	return ret;
 }
 
 template<typename Type>
 std::string getTypename(){
-	return getTypename(typeid(Type).hash_code());
+	return getTypename(typeid(Type).name());
 }
 
 template<typename Type>
@@ -35,21 +26,6 @@ std::string getTypename(Type& t){
 	return getTypename<Type>();
 }
 
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// TO JSON
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static std::map<std::string, std::function<void(ofAbstractParameter&, Json&)>>paramToJsonHandlers;
-static bool bParamHandlerSetup = false;
-
-/////////////////////////////////////////////////////////
-
-std::string getName(ofAbstractParameter& param){
-	std::string name = param.getName();
-	if(!name.size())
-		name = "no name";
-	return name;
-}
 
 template<typename Type>
 void fillMinMax(ofParameter<Type>& param, Json& j){
@@ -59,7 +35,7 @@ void fillMinMax(ofParameter<Type>& param, Json& j){
 
 void groupToJson(ofAbstractParameter& param, Json& json){
 	ofParameterGroup& params = static_cast<ofParameterGroup&>(param);
-	json["type"] = "group";
+	//json["type"] = "group";
 	json["children"] = {};
 	for(auto p:params){
 		json["children"].push_back(toJson(*p));
@@ -69,95 +45,21 @@ void groupToJson(ofAbstractParameter& param, Json& json){
 template<typename Type>
 void toJson(ofAbstractParameter& p, Json& json){
 	ofParameter<Type> param = p.cast<Type>();
-	json["type"] = getTypename<Type>();
+	//json["type"] = getTypename<Type>();
 	json["value"] = param.get();
 }
 
 template<typename Type>
 void toJsonMinMax(ofAbstractParameter& p, Json& json){
 	ofParameter<Type> param = p.cast<Type>();
-	json["type"] = getTypename<Type>();
+	//json["type"] = getTypename<Type>();
 	json["value"] = param.get();
 	fillMinMax(param, json);
 }
 
 
-////////////////////////////////////////////
+///////////////////////////////////////// FROM JSON HELPERS
 
-template<typename Type>
-static void addParamHandler(std::function<void(ofAbstractParameter&, Json&)> handler){
-	paramToJsonHandlers[typeid(ofParameter<Type>).name()] = handler;
-}
-
-template<typename Type>
-static void addParamHandler(){
-	paramToJsonHandlers[typeid(ofParameter<Type>).name()] = &toJson<Type>;
-}
-
-template<typename Type>
-static void addParamHandlerMinMax(){
-	paramToJsonHandlers[typeid(ofParameter<Type>).name()] = &toJsonMinMax<Type>;
-}
-
-static void setupParamHandlers(){
-	if(bParamHandlerSetup)
-		return;
-
-	setupTypenames();
-
-	paramToJsonHandlers[typeid(ofParameterGroup).name()] = &groupToJson;
-
-	////////////////////////////////
-	/////////// ADD NEW TYPES HERE
-	addParamHandler<bool>();
-	addParamHandlerMinMax<int>();
-	addParamHandlerMinMax<float>();
-	addParamHandlerMinMax<double>();
-	addParamHandler<std::string>();
-
-	bParamHandlerSetup = true;
-}
-
-/////////////////////////////////////////////////
-
-
-Json toJson(ofAbstractParameter& param){
-	setupParamHandlers();
-
-
-	if(param.isReadOnly()){
-		ofLogWarning("ofxParamServerJson") << "Read Only parameters are not implemented";
-		return {};
-	}
-
-	std::string type = param.type();
-	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
-		ofLogWarning("ofxParamServerJson") << "Type " << type << " not implemented";
-		return {};
-	}
-
-	Json json;
-	json["name"] = param.getName().size() ? param.getName() : "no name";
-	paramToJsonHandlers[type](param, json);
-	return json;
-}
-
-Json toJson(ofParameterGroup& params){
-	return toJson(static_cast<ofAbstractParameter&>(params));
-}
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// FROM JSON
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void jsonCacheName(Json& json){
-	for (Json::iterator it = json.begin(); it != json.end(); ++it) {
-		if(it.value().is_object()){
-			it.value()["nameCached"] = it.key();
-			jsonCacheName(it.value());
-		}
-	}
-}
 
 template<typename Type>
 void fillMinMax(ofParameter<Type>* param, Json& j){
@@ -180,38 +82,89 @@ ofAbstractParameter* jsonToGeneric(Json& json){
 	return ret;
 }
 
-static std::map<std::string, std::function<ofAbstractParameter*(Json&)>> jsonHandlers;
-static bool bJsonHandlersSetup = false;
 
 
-///////////////////////////
+
+///////////////////////////////////////////////////////////////
 
 template<typename Type>
-void addJsonHandler(){
-	jsonHandlers[getTypename<Type>()] = &jsonToGeneric<Type>;
+void addTypeGeneric(std::string name){
+	ofxParamServerAddType<ofParameter<Type>>(name, &toJson<Type>, &jsonToGeneric<Type>);
 }
 
-void setupJsonHandlers(){
-	if(bJsonHandlersSetup)
+template<typename Type>
+void addTypeGenericMinMax(std::string name){
+	ofxParamServerAddType<ofParameter<Type>>(name, &toJsonMinMax<Type>, &jsonToGeneric<Type>);
+}
+
+void setupTypeHandlers(){
+	if(bHandlersSetup)
 		return;
 
-	setupTypenames();
+	bHandlersSetup = true;
 
-	////////////////////////////////
-	/////////// ADD NEW TYPES HERE
-	//jsonHandlers["int"] = &jsonTo<int>;
-	//jsonHandlers["bool"] = &jsonTo<bool>;
-	addJsonHandler<bool>();
-	addJsonHandler<int>();
-	addJsonHandler<float>();
-	addJsonHandler<double>();
-	addJsonHandler<std::string>();
+	//groups are special
+	paramToJsonHandlers[typeid(ofParameterGroup).name()] = &groupToJson;
+	jsonTypeNames[typeid(ofParameterGroup).name()] = "group";
 
-	bJsonHandlersSetup = true;
+	//ofxParamServerAddType<ofParameterGroup>("group", &groupToJson, NULL);
+
+
+	//add all basic types
+	addTypeGeneric<bool>("bool");
+
+	addTypeGenericMinMax<int>("int");
+	addTypeGenericMinMax<unsigned>("unsigned");
+	addTypeGenericMinMax<float>("float");
+	addTypeGenericMinMax<double>("double");
+	addTypeGenericMinMax<long>("long");
+
+	addTypeGeneric<std::string>("string");
+
+
 }
 
+void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
+	setupTypeHandlers();
+	jsonTypeNames[typeName] = niceName;
+	jsonToParamHandlers[niceName] = fromJson;
+	paramToJsonHandlers[typeName] = toJson;
+}
+
+
+////////////////////////////////////////////////////////////////////
+
+Json toJson(ofAbstractParameter& param){
+	setupTypeHandlers();
+
+
+	if(param.isReadOnly()){
+		ofLogWarning("ofxParamServerJson") << "Read Only parameters are not implemented";
+		return {};
+	}
+
+	std::string type = param.type();
+	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
+		ofLogWarning("ofxParamServerJson") << "Type " << type << " not implemented";
+		return {};
+	}
+
+	Json json;
+	json["name"] = param.getName().size() ? param.getName() : "no name";
+	json["type"] = getTypename(param.type());
+	paramToJsonHandlers[type](param, json);
+	return json;
+}
+
+Json toJson(ofParameterGroup& params){
+	return toJson(static_cast<ofAbstractParameter&>(params));
+}
+
+
+///////////////////////////////////////////////////////////////////
+
 std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* group = nullptr){
-	setupJsonHandlers();
+	setupTypeHandlers();
 
 	if(json["type"] !="group"){
 		ofLogWarning() << "Wrong json format" << json;
@@ -230,13 +183,14 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* grou
 	for(auto& j: json["children"]){
 		if(!j.is_null()){
 			std::string type = j["type"];
+			ofLog() << type;
 			if(type == "group"){
 				std::vector<ofAbstractParameter*> params = jsonToGroup(j);
 				ret.insert(ret.end(), params.begin(), params.end());
 				group->add(*params[0]);
 			}else{
-				if(jsonHandlers.find(type) != jsonHandlers.end()){
-					ofAbstractParameter* param = jsonHandlers[type](j);
+				if(jsonToParamHandlers.find(type) != jsonToParamHandlers.end()){
+					ofAbstractParameter* param = jsonToParamHandlers[type](j);
 					param->setName(j["name"]);
 					group->add(*param);
 					ret.push_back(param);
@@ -252,9 +206,6 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* grou
 	return ret;
 }
 
-
-////////////
-
 std::vector<ofAbstractParameter *> syncToJson(string jsonStr, ofParameterGroup &params){
 	if(!jsonStr.size())
 		return {};
@@ -262,6 +213,6 @@ std::vector<ofAbstractParameter *> syncToJson(string jsonStr, ofParameterGroup &
 }
 
 std::vector<ofAbstractParameter *> syncToJson(Json json, ofParameterGroup &params){
-	setupJsonHandlers();
+	setupTypeHandlers();
 	return jsonToGroup(json, &params);
 }

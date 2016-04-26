@@ -23,6 +23,9 @@ public:
 
 	ofParameterGroup& getParams();
 
+	void save(std::string path);
+	void load(std::string path);
+
 private:
 	void onParamChanged(ofAbstractParameter& param);
 

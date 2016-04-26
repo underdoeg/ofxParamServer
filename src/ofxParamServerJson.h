@@ -15,19 +15,30 @@ std::vector<ofAbstractParameter*> syncToJson(Json json, ofParameterGroup& params
 
 
 using ofxParamToJsonFunc = std::function<void(ofAbstractParameter&, Json&)>;
-using ofxParamFromJsonFunc = std::function<ofAbstractParameter*(Json&)>;
+using ofxParamFromJsonFunc = std::function<void(ofAbstractParameter*, Json&)>;
+using ofxParamCastOrCreateFunc = std::function<ofAbstractParameter*(ofAbstractParameter*)>;
 
+template<typename Type>
+ofAbstractParameter* ofxParamServerCastOrCreate(ofAbstractParameter* param){
+	ofAbstractParameter* ret = dynamic_cast<Type*>(param);
+	if(!ret){
+		if(param) //was wrong type
+			delete param;
+		ret = new Type();
+	}
+	return ret;
+}
 
-void ofxParamServerAddType(std::string typeName, std::string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson);
+void ofxParamServerAddType(std::string typeName, std::string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc);
 
 template<typename Type>
 void ofxParamServerAddType(std::string niceName,ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
-	ofxParamServerAddType(typeid(Type).name(), niceName, toJson, fromJson);
+	ofxParamServerAddType(typeid(Type).name(), niceName, toJson, fromJson, &ofxParamServerCastOrCreate<Type>);
 }
 
 template<typename Type>
 void ofxParamServerAddType(ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
-	ofxParamServerAddType(typeid(Type).name(), typeid(Type).name(), toJson, fromJson);
+	ofxParamServerAddType<Type>(typeid(Type).name(), toJson, fromJson);
 }
 
 template<typename Type>

@@ -75,9 +75,6 @@ void ofxParamClient::sync(){
 
 	bSynced = true;
 	params = syncToJson(res, getParams());
-	//paramGroup = static_cast<ofParameterGroup*>(params[0]);
-
-	//ofAddListener(getParams().parameterChangedE(), this, &ofxParamClient::onParamChanged);
 
 	paramSync.setup(getParams(), oscPortLocal, serverIp, oscPortServer);
 }
@@ -94,6 +91,24 @@ bool ofxParamClient::isSynced(){
 
 ofParameterGroup &ofxParamClient::getParams(){
 	return paramGroup;
+}
+
+void ofxParamClient::save(string path){
+
+	ofLogNotice("ofxParamClient") << "Save params to " << path;
+
+	path = ofToDataPath(path);
+	Json json = toJson(getParams());
+
+	ofFile file(path, ofFile::WriteOnly);
+
+	file.writeFromBuffer(json.dump(4));
+}
+
+void ofxParamClient::load(string path){
+	ofBuffer buffer = ofBufferFromFile(path, false);
+	params = syncToJson(buffer.getText(), getParams());
+	bSynced = true;
 }
 
 void ofxParamClient::onParamChanged(ofAbstractParameter &param){

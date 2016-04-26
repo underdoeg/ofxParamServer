@@ -117,8 +117,6 @@ void setupTypeHandlers(){
 	addTypeGenericMinMax<long>("long");
 
 	addTypeGeneric<std::string>("string");
-
-
 }
 
 void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
@@ -141,7 +139,6 @@ Json toJson(ofAbstractParameter& param){
 	}
 
 	std::string type = param.type();
-	ofLog() << param.getName() << " - " << type;
 	if(paramToJsonHandlers.find(type) == paramToJsonHandlers.end()){
 		ofLogWarning("ofxParamServerJson") << "Type " << type << " not implemented";
 		return {};

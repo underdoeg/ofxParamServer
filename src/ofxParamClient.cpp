@@ -37,8 +37,6 @@ std::string curlRead(std::string url){
 /////////////////////////////////////////////////
 
 ofxParamClient::ofxParamClient(){
-	bSynced = false;
-
 }
 
 ofxParamClient::~ofxParamClient(){
@@ -51,30 +49,18 @@ void ofxParamClient::setup(string ip, int oscPLocal, int oscPRemote, int httpP){
 	oscPortServer = oscPRemote;
 	httpPort = httpP;
 	sync();
-/*
-	ofEvents().update.newListener([&](ofEventArgs&){
-		if(isSynced()){
-
-		};
-	});
-*/
 }
 
 void ofxParamClient::sync(){
 
-	//ofRemoveListener(getParams().parameterChangedE(), this, &ofxParamClient::onParamChanged);
-	//
-
-
-	bSynced = false;
+	//bSynced = false;
 	std::stringstream url;
 	url << serverIp << ":" << httpPort;
 	std::string res = curlRead(url.str());
 	if(res.size() == 0)
 		return;
 
-	bSynced = true;
-	params = syncToJson(res, getParams());
+	params = syncToJson(res, params);
 
 	paramSync.setup(getParams(), oscPortLocal, serverIp, oscPortServer);
 }
@@ -86,11 +72,22 @@ void ofxParamClient::update(){
 }
 
 bool ofxParamClient::isSynced(){
-	return bSynced;
+	return params.size()>0;
+}
+
+void ofxParamClient::forceServerSync(){
+	std::stringstream url;
+	url << serverIp << ":" << httpPort << "/sync";
+	std::string res = curlRead(url.str());
+	ofLog() << "Force server sync " << res;
 }
 
 ofParameterGroup &ofxParamClient::getParams(){
-	return paramGroup;
+	if(!isSynced()){
+		ofLogError("ofxParamClient") << "Nor synced returning random empty parameter group";
+		return *(new ofParameterGroup);
+	}
+	return dynamic_cast<ofParameterGroup&>(*params[0]);
 }
 
 void ofxParamClient::save(string path){
@@ -106,9 +103,15 @@ void ofxParamClient::save(string path){
 }
 
 void ofxParamClient::load(string path){
+
+	ofLogNotice("ofxParamClient") << "Load params from " << path;
+
 	ofBuffer buffer = ofBufferFromFile(path, false);
-	params = syncToJson(buffer.getText(), getParams());
-	bSynced = true;
+	params = syncToJson(buffer.getText(), params);
+
+	forceServerSync();
+
+	sync();
 }
 
 void ofxParamClient::onParamChanged(ofAbstractParameter &param){

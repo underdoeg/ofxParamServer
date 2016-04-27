@@ -21,6 +21,8 @@ public:
 
 	bool isSynced();
 
+	void forceServerSync();
+
 	ofParameterGroup& getParams();
 
 	void save(std::string path);
@@ -29,13 +31,12 @@ public:
 private:
 	void onParamChanged(ofAbstractParameter& param);
 
-	bool bSynced;
 	std::string serverIp;
 	int oscPortLocal;
 	int oscPortServer;
 	int httpPort;
-	ofParameterGroup paramGroup;
-	std::vector<ofAbstractParameter*> params;
+
+	std::vector<shared_ptr<ofAbstractParameter>> params;
 
 	ofxOscParameterSync paramSync;
 };

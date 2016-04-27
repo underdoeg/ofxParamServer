@@ -94,6 +94,7 @@ void setupTypeHandlers(){
 	//groups are special
 	paramToJsonHandlers[typeid(ofParameterGroup).name()] = &groupToJson;
 	jsonTypeNames[typeid(ofParameterGroup).name()] = "group";
+	paramCastOrCreateHandlers[jsonTypeNames[typeid(ofParameterGroup).name()]] = &ofxParamServerCastOrCreate<ofParameterGroup>;
 
 	//ofxParamServerAddType<ofParameterGroup>("group", &groupToJson, NULL);
 
@@ -148,8 +149,62 @@ Json toJson(ofParameterGroup& params){
 
 
 ///////////////////////////////////////////////////////////////////
+/*
+void printGroup(ofParameterGroup& group){
+	for(auto p: group){
+		ofLog() << p->getName();
+		if(p->type() == typeid(ofParameterGroup).name()){
+			printGroup(static_cast<ofParameterGroup&>(*p));
+		}
+	}
+}
+*/
 
-std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* group = nullptr, std::string path="/"){
+//copied from ofPArameter
+string escape(const string& _str){
+	if(_str == "")
+		return "no_name";
+
+	std::string str(_str);
+
+	ofStringReplace(str, " ", "_");
+	ofStringReplace(str, "<", "_");
+	ofStringReplace(str, ">", "_");
+	ofStringReplace(str, "{", "_");
+	ofStringReplace(str, "}", "_");
+	ofStringReplace(str, "[", "_");
+	ofStringReplace(str, "]", "_");
+	ofStringReplace(str, ",", "_");
+	ofStringReplace(str, "(", "_");
+	ofStringReplace(str, ")", "_");
+	ofStringReplace(str, "/", "_");
+	ofStringReplace(str, "\\", "_");
+	ofStringReplace(str, ".", "_");
+
+	return str;
+}
+
+
+string joinList(vector<string> arr, string delimiter){
+	if (arr.empty()) return "";
+
+	string str;
+	for (auto i : arr)
+		str += i + delimiter;
+	str = str.substr(0, str.size() - delimiter.size());
+	return delimiter+str;
+}
+
+std::shared_ptr<ofAbstractParameter> findParamByPath(std::string path, std::vector<shared_ptr<ofAbstractParameter>> params){
+	for(auto p: params){
+		if(p && joinList(p->getGroupHierarchyNames(), "/") == path){
+			return p;
+		}
+	}
+	return nullptr;
+}
+
+std::vector<shared_ptr<ofAbstractParameter>> jsonToGroup(Json& json, std::string path="/", std::vector<shared_ptr<ofAbstractParameter>> existingParams = {}){
 	setupTypeHandlers();
 
 	if(json["type"] !="group"){
@@ -157,36 +212,98 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* grou
 		return {};
 	}
 
+	std::string groupName = json["name"];
+	std::string groupPath = path+escape(groupName);
+
+	shared_ptr<ofParameterGroup> group = dynamic_pointer_cast<ofParameterGroup>(paramCastOrCreateHandlers["group"](findParamByPath(groupPath, existingParams)));
+	std::vector<shared_ptr<ofAbstractParameter>> ret = {shared_ptr<ofAbstractParameter>(group)};
+
+	group->setName(groupName);
+	path += group->getEscapedName()+"/";
+
+	//handle children
+	for(auto& j: json["children"]){
+		if(!j.is_null()){
+			std::string type = j["type"];
+			std::string paramName = j["name"];
+			std::string paramPath = path+escape(paramName);
+
+			shared_ptr<ofAbstractParameter> childParam = nullptr;
+
+			if(type == "group"){
+				auto childGroupParams = jsonToGroup(j, path, existingParams);
+				ret.insert(ret.end(), childGroupParams.begin(), childGroupParams.end());
+				childParam = childGroupParams[0];
+			}else{
+				if(jsonToParamHandlers.find(type) != jsonToParamHandlers.end()){
+					childParam = paramCastOrCreateHandlers[type](findParamByPath(paramPath, existingParams));
+					childParam->setName(paramName);
+					jsonToParamHandlers[type](childParam.get(), j);
+					ret.push_back(childParam);
+				}else{
+					ofLogWarning("ofxParamServer") << "unknwon json type " << type;
+				}
+			}
+
+			//found a param, add to group
+			if(childParam && !group->contains(childParam->getName()))
+				group->add(*childParam.get());
+
+		}
+	}
+
+	return ret;
+
+	/*
+	ofParameterGroup* group = dynamic_cast<ofParameterGroup*>(parentGroup.get());
+
 	if(!group){
 		group = new ofParameterGroup;
+		ofLog() << "new group";
 	}
 
 	group->setName(json["name"].get<std::string>());
 
-	std::vector<ofAbstractParameter*> ret = {group};
 
-	ofLog() << path;
+
+	path += group->getEscapedName()+"/";
+
+	for(auto p: existingParams){
+		//ofLog() << p->getName();
+	}
+
+
+	//std::vector<shared_ptr<ofAbstractParameter>> toAdd;
 
 	//add children
 	for(auto& j: json["children"]){
 		if(!j.is_null()){
 			std::string type = j["type"];
+			std::string paramName = j["name"];
+			std::string paramPath = path+escape(paramName);
+			//can be null
+			ofAbstractParameter* existingParam = findParamByPath(paramPath, existingParams);
+
 			if(type == "group"){
-				std::vector<ofAbstractParameter*> params = jsonToGroup(j, nullptr, path+group->getName()+"/");
-				ret.insert(ret.end(), params.begin(), params.end());
-				group->add(*params[0]);
+				ofParameterGroup* existingGroup = dynamic_cast<ofParameterGroup*>(paramCastOrCreateHandlers[type](existingParam));
+				//if(existingGroup)
+					//existingGroup->clear();
+
+				std::vector<shared_ptr<ofAbstractParameter>> params = jsonToGroup(j, shared_ptr<ofAbstractParameter>(existingGroup), path, existingParams);
+				//ret.insert(ret.end(), params.begin(), params.end());
+
+				group->add(*existingGroup);
+
+				//toAdd.push_back(shared_ptr<ofAbstractParameter>(existingGroup));
 			}else{
 				if(jsonToParamHandlers.find(type) != jsonToParamHandlers.end()){
-
-					std::string paramName = j["name"];
-					std::string paramPath = path+paramName;
-
-					ofLog() << paramPath;
-
-					ofAbstractParameter* param = paramCastOrCreateHandlers[type](nullptr);
+					shared_ptr<ofAbstractParameter> param = shared_ptr<ofAbstractParameter>(paramCastOrCreateHandlers[type](existingParam));
 					param->setName(paramName);
-					jsonToParamHandlers[type](param, j);
+					jsonToParamHandlers[type](param.get(), j);
+
 					group->add(*param);
+					//toAdd.push_back(param);
+					ofLog() << "PUSHING BACK " << param->getName();
 					ret.push_back(param);
 				}else{
 					ofLogWarning("ofxParamServer") << "unknwon json type " << type;
@@ -197,16 +314,59 @@ std::vector<ofAbstractParameter*> jsonToGroup(Json& json, ofParameterGroup* grou
 		}
 	}
 
-	return ret;
+	//group->clear();
+	group->setName(json["name"].get<std::string>());
+
+	*/
+	//for(auto param: toAdd){
+	/*
+		if(!group->contains(param->getName()))
+			group->add(*param);
+		param->getGroupHierarchyNames();
+		*/
+	//}
+	/*
+	for(auto p: ret){
+		//ofLog() << p->getName();
+	}
+	*/
+
 }
 
-std::vector<ofAbstractParameter *> syncToJson(string jsonStr, ofParameterGroup &params){
+
+std::vector<shared_ptr<ofAbstractParameter>> syncToJson(string jsonStr, std::vector<shared_ptr<ofAbstractParameter>> existingParams){
 	if(!jsonStr.size())
 		return {};
-	return syncToJson(Json::parse(jsonStr), params);
+	return syncToJson(Json::parse(jsonStr), existingParams);
 }
 
-std::vector<ofAbstractParameter *> syncToJson(Json json, ofParameterGroup &params){
+std::vector<shared_ptr<ofAbstractParameter>> syncToJson(Json json, std::vector<shared_ptr<ofAbstractParameter>> existingParams){
 	setupTypeHandlers();
-	return jsonToGroup(json, &params);
+	//std::vector<shared_ptr<ofAbstractParameter>> newParams = jsonToGroup(json, "/", existingParams);
+	/*
+	ofParameterGroup* curParent = &params;
+	for(auto p: existingParams){
+		//if(p->type() == "group")
+			//curParent = dynamic_cast<ofParameterGroup*>(p);
+
+		if(std::find(newParams.begin(), newParams.end(), p) == newParams.end()){
+			ofLogNotice("ofxParamServer") << "Deleting existing parameter " << joinList(p->getGroupHierarchyNames(), "/");
+		}
+	}
+
+
+
+	/*
+	for(auto p: newParams){
+		if(p->type() == typeid(ofParameterGroup).name()){
+			ofParameterGroup* group = dynamic_cast<ofParameterGroup*>(p);
+			for(auto child: *group){
+				ofLog() << joinList(child->getGroupHierarchyNames(), "/");
+			}
+		}
+		ofLog() << joinList(p->getGroupHierarchyNames(), "/");
+	}
+	*/
+
+	return jsonToGroup(json, "/", existingParams);
 }

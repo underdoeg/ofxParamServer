@@ -10,23 +10,23 @@ using Json = nlohmann::json;
 Json toJson(ofParameterGroup& params);
 Json toJson(ofAbstractParameter& param);
 
-std::vector<ofAbstractParameter*> syncToJson(std::string jsonStr, ofParameterGroup& params);
-std::vector<ofAbstractParameter*> syncToJson(Json json, ofParameterGroup& params);
+std::vector<shared_ptr<ofAbstractParameter>> syncToJson(std::string jsonStr, std::vector<shared_ptr<ofAbstractParameter>> existingParams = {});
+std::vector<shared_ptr<ofAbstractParameter>> syncToJson(Json json, std::vector<shared_ptr<ofAbstractParameter>> existingParams = {});
 
 
 using ofxParamToJsonFunc = std::function<void(ofAbstractParameter&, Json&)>;
 using ofxParamFromJsonFunc = std::function<void(ofAbstractParameter*, Json&)>;
-using ofxParamCastOrCreateFunc = std::function<ofAbstractParameter*(ofAbstractParameter*)>;
+using ofxParamCastOrCreateFunc = std::function<shared_ptr<ofAbstractParameter>(shared_ptr<ofAbstractParameter>)>;
 
 template<typename Type>
-ofAbstractParameter* ofxParamServerCastOrCreate(ofAbstractParameter* param){
-	ofAbstractParameter* ret = dynamic_cast<Type*>(param);
-	if(!ret){
-		if(param) //was wrong type
-			delete param;
-		ret = new Type();
+shared_ptr<ofAbstractParameter> ofxParamServerCastOrCreate(shared_ptr<ofAbstractParameter> param){
+	if(!param)
+		return shared_ptr<ofAbstractParameter>(new Type());
+
+	if(!dynamic_pointer_cast<Type>(param)){
+		return shared_ptr<ofAbstractParameter>(new Type());
 	}
-	return ret;
+	return param;
 }
 
 void ofxParamServerAddType(std::string typeName, std::string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc);

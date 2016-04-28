@@ -248,89 +248,17 @@ std::vector<shared_ptr<ofAbstractParameter>> jsonToGroup(Json& json, std::string
 			//found a param, add to group
 			if(childParam && !group->contains(childParam->getName()))
 				group->add(*childParam.get());
+		}
+	}
 
+	//check if we have to remove some parameters
+	for(auto param: *group){
+		if(findParamByPath(joinList(param->getGroupHierarchyNames(), "/"), ret) == nullptr){
+			group->remove(*param);
 		}
 	}
 
 	return ret;
-
-	/*
-	ofParameterGroup* group = dynamic_cast<ofParameterGroup*>(parentGroup.get());
-
-	if(!group){
-		group = new ofParameterGroup;
-		ofLog() << "new group";
-	}
-
-	group->setName(json["name"].get<std::string>());
-
-
-
-	path += group->getEscapedName()+"/";
-
-	for(auto p: existingParams){
-		//ofLog() << p->getName();
-	}
-
-
-	//std::vector<shared_ptr<ofAbstractParameter>> toAdd;
-
-	//add children
-	for(auto& j: json["children"]){
-		if(!j.is_null()){
-			std::string type = j["type"];
-			std::string paramName = j["name"];
-			std::string paramPath = path+escape(paramName);
-			//can be null
-			ofAbstractParameter* existingParam = findParamByPath(paramPath, existingParams);
-
-			if(type == "group"){
-				ofParameterGroup* existingGroup = dynamic_cast<ofParameterGroup*>(paramCastOrCreateHandlers[type](existingParam));
-				//if(existingGroup)
-					//existingGroup->clear();
-
-				std::vector<shared_ptr<ofAbstractParameter>> params = jsonToGroup(j, shared_ptr<ofAbstractParameter>(existingGroup), path, existingParams);
-				//ret.insert(ret.end(), params.begin(), params.end());
-
-				group->add(*existingGroup);
-
-				//toAdd.push_back(shared_ptr<ofAbstractParameter>(existingGroup));
-			}else{
-				if(jsonToParamHandlers.find(type) != jsonToParamHandlers.end()){
-					shared_ptr<ofAbstractParameter> param = shared_ptr<ofAbstractParameter>(paramCastOrCreateHandlers[type](existingParam));
-					param->setName(paramName);
-					jsonToParamHandlers[type](param.get(), j);
-
-					group->add(*param);
-					//toAdd.push_back(param);
-					ofLog() << "PUSHING BACK " << param->getName();
-					ret.push_back(param);
-				}else{
-					ofLogWarning("ofxParamServer") << "unknwon json type " << type;
-				}
-			}
-		}else{
-			ofLogWarning("ofxParamServer") << "json is null -> SKIPPING";
-		}
-	}
-
-	//group->clear();
-	group->setName(json["name"].get<std::string>());
-
-	*/
-	//for(auto param: toAdd){
-	/*
-		if(!group->contains(param->getName()))
-			group->add(*param);
-		param->getGroupHierarchyNames();
-		*/
-	//}
-	/*
-	for(auto p: ret){
-		//ofLog() << p->getName();
-	}
-	*/
-
 }
 
 
@@ -342,31 +270,18 @@ std::vector<shared_ptr<ofAbstractParameter>> syncToJson(string jsonStr, std::vec
 
 std::vector<shared_ptr<ofAbstractParameter>> syncToJson(Json json, std::vector<shared_ptr<ofAbstractParameter>> existingParams){
 	setupTypeHandlers();
-	//std::vector<shared_ptr<ofAbstractParameter>> newParams = jsonToGroup(json, "/", existingParams);
-	/*
-	ofParameterGroup* curParent = &params;
-	for(auto p: existingParams){
-		//if(p->type() == "group")
-			//curParent = dynamic_cast<ofParameterGroup*>(p);
+	std::vector<shared_ptr<ofAbstractParameter>> newParams = jsonToGroup(json, "/", existingParams);
 
-		if(std::find(newParams.begin(), newParams.end(), p) == newParams.end()){
-			ofLogNotice("ofxParamServer") << "Deleting existing parameter " << joinList(p->getGroupHierarchyNames(), "/");
-		}
-	}
+	if(newParams.size()>0){
+		ofParameterGroup* curParent = dynamic_cast<ofParameterGroup*>(newParams[0].get());
+		for(auto p: existingParams){
+			//if(p->type() == "group")
+				//curParent = dynamic_cast<ofParameterGroup*>(p);
 
-
-
-	/*
-	for(auto p: newParams){
-		if(p->type() == typeid(ofParameterGroup).name()){
-			ofParameterGroup* group = dynamic_cast<ofParameterGroup*>(p);
-			for(auto child: *group){
-				ofLog() << joinList(child->getGroupHierarchyNames(), "/");
+			if(std::find(newParams.begin(), newParams.end(), p) == newParams.end()){
+				ofLogNotice("ofxParamServer") << "Deleting existing parameter " << joinList(p->getGroupHierarchyNames(), "/");
 			}
 		}
-		ofLog() << joinList(p->getGroupHierarchyNames(), "/");
 	}
-	*/
-
-	return jsonToGroup(json, "/", existingParams);
+	return newParams;
 }

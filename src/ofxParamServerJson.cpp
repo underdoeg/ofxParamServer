@@ -56,9 +56,8 @@ void toJsonMinMax(ofAbstractParameter& p, Json& json){
 }
 
 
-///////////////////////////////////////// FROM JSON HELPERS
 
-//
+///////////////////////////////////////// FROM JSON HELPERS
 
 template<typename Type>
 void jsonToGeneric(ofAbstractParameter* p, Json& json){
@@ -72,6 +71,54 @@ void jsonToGeneric(ofAbstractParameter* p, Json& json){
 	}
 }
 
+template<typename VectorType>
+VectorType jsonArrayToVector(Json& j){
+	VectorType v;
+	if(j.size() < VectorType::DIM)
+		return v;
+	for(unsigned i=0; i<VectorType::DIM; i++){
+		v[i] = j[i];
+	}
+	return v;
+}
+
+
+////////////////////////////////////////////////////////////////
+
+template<typename VectorType>
+void toJsonVecArray(const VectorType& in, Json& json){
+	std::vector<float> v;
+	for(unsigned i=0; i<VectorType::DIM; i++){
+		v.push_back(in[i]);
+	}
+	json = v;
+}
+
+template<typename VectorType>
+void toJsonVector(ofAbstractParameter& p, Json& json){
+	ofParameter<VectorType> param = p.cast<VectorType>();
+	toJsonVecArray<VectorType>(param.get(), json["value"]);
+	toJsonVecArray<VectorType>(param.getMin(), json["min"]);
+	toJsonVecArray<VectorType>(param.getMax(), json["max"]);
+}
+
+
+template<typename VectorType>
+void jsonToVectorGeneric(ofAbstractParameter* p, Json& json){
+	ofParameter<VectorType>* param = static_cast<ofParameter<VectorType>*>(p);
+	param->set(jsonArrayToVector<VectorType>(json["value"]));
+	if(json.find("min") != json.end()){
+		param->setMin(jsonArrayToVector<VectorType>(json["min"]));
+	}
+	if(json.find("max") != json.end()){
+		param->setMax(jsonArrayToVector<VectorType>(json["max"]));
+	}
+}
+
+template<typename VectorType>
+void addVectorType(std::string name){
+	ofxParamServerAddType(typeid(ofParameter<VectorType>).name(), name, &toJsonVector<VectorType>, &jsonToVectorGeneric<VectorType>, &ofxParamServerCastOrCreate<ofParameter<VectorType>>);
+}
 
 ///////////////////////////////////////////////////////////////
 
@@ -96,9 +143,6 @@ void setupTypeHandlers(){
 	jsonTypeNames[typeid(ofParameterGroup).name()] = "group";
 	paramCastOrCreateHandlers[jsonTypeNames[typeid(ofParameterGroup).name()]] = &ofxParamServerCastOrCreate<ofParameterGroup>;
 
-	//ofxParamServerAddType<ofParameterGroup>("group", &groupToJson, NULL);
-
-
 	//add all basic types
 	addTypeGeneric<bool>("bool");
 
@@ -109,6 +153,10 @@ void setupTypeHandlers(){
 	addTypeGenericMinMax<long>("long");
 
 	addTypeGeneric<std::string>("string");
+
+	addVectorType<ofVec2f>("vec2");
+	addVectorType<ofVec3f>("vec3");
+	addVectorType<ofVec4f>("vec4");
 }
 
 void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc){
@@ -276,7 +324,7 @@ std::vector<shared_ptr<ofAbstractParameter>> syncToJson(Json json, std::vector<s
 		ofParameterGroup* curParent = dynamic_cast<ofParameterGroup*>(newParams[0].get());
 		for(auto p: existingParams){
 			//if(p->type() == "group")
-				//curParent = dynamic_cast<ofParameterGroup*>(p);
+			//curParent = dynamic_cast<ofParameterGroup*>(p);
 
 			if(std::find(newParams.begin(), newParams.end(), p) == newParams.end()){
 				ofLogNotice("ofxParamServer") << "Deleting existing parameter " << joinList(p->getGroupHierarchyNames(), "/");

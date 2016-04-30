@@ -16,6 +16,7 @@ public:
 	void setup(std::string serverIp="127.0.0.1", int oscPortLocal=OSC_PORT_CLIENT, int oscPortServer=OSC_PORT_SERVER, int httpPort=HTTP_PORT);
 
 	void sync();
+	void sendAll();
 
 	void update();
 

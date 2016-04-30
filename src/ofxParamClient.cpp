@@ -65,6 +65,19 @@ void ofxParamClient::sync(){
 	paramSync.setup(getParams(), oscPortLocal, serverIp, oscPortServer);
 }
 
+void ofxParamClient::sendAll(){
+	if(!getParams().size())
+		return;
+
+	ofParameterGroup* group = &getParams();
+
+	for(auto& p:getParams()){
+		if(group == p.get())
+			continue;
+		group->parameterChangedE().notify(group, *p.get());
+	}
+}
+
 void ofxParamClient::update(){
 	if(isSynced()){
 		paramSync.update();

@@ -42,8 +42,14 @@ static int answerHttp(void *cls, struct MHD_Connection *connection,
 
 ///////////////////////////
 
-ofxParamServer::ofxParamServer():params(nullptr){
+ofxParamServer::ofxParamServer():params(nullptr),httpDaemon(nullptr){
+}
 
+ofxParamServer::~ofxParamServer(){
+	if(httpDaemon){
+		MHD_stop_daemon(httpDaemon);
+		ofLogNotice("ofxParamServer") << "stopped";
+	}
 }
 
 void ofxParamServer::setup(ofParameterGroup& p, const std::string clientIp, int portLocal, int portClients, int httpPort){
@@ -54,6 +60,7 @@ void ofxParamServer::setup(ofParameterGroup& p, const std::string clientIp, int 
 	sync.setup(getParameters(), portLocal, clientIp, portClients);
 
 	ofAddListener(ofEvents().update, this, &ofxParamServer::update);
+	ofLogNotice("ofxParamServer") << "started";
 }
 
 void ofxParamServer::updateSync(){

@@ -63,6 +63,12 @@ void ofxParamServer::setup(ofParameterGroup& p, const std::string clientIp, int 
 	ofLogNotice("ofxParamServer") << "started";
 }
 
+/*
+void ofxParamServer::setIgnore(ofAbstractParameter& param){
+	ignored.push_back(&param);
+}
+*/
+
 void ofxParamServer::updateSync(){
 	sync.update();
 }

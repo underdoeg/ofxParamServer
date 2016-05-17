@@ -286,7 +286,11 @@ std::vector<shared_ptr<ofAbstractParameter>> jsonToGroup(Json& json, std::string
 				if(jsonToParamHandlers.find(type) != jsonToParamHandlers.end()){
 					childParam = paramCastOrCreateHandlers[type](findParamByPath(paramPath, existingParams));
 					childParam->setName(paramName);
-					jsonToParamHandlers[type](childParam.get(), j);
+					try {
+						jsonToParamHandlers[type](childParam.get(), j);
+					} catch (std::exception& e) {
+						ofLogError("ofxParamServer") << "error setting data for " << paramName << " from json: " << e.what();
+					}
 					ret.push_back(childParam);
 				}else{
 					ofLogWarning("ofxParamServer") << "unknwon json type " << type;

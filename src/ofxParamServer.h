@@ -14,6 +14,9 @@ public:
 	~ofxParamServer();
 	void setup(ofParameterGroup& params, const std::string clientIp="127.0.0.1", int portLocal=OSC_PORT_SERVER, int portClients=OSC_PORT_CLIENT, int httpPort=HTTP_PORT);
 
+	//void setIgnore(ofAbstractParameter& param);
+	//void setReadOnly(ofAbstractParameter param);
+
 	void updateSync();
 
 	ofParameterGroup& getParameters();
@@ -26,6 +29,8 @@ private:
 	MHD_Daemon* httpDaemon;
 
 	ofxOscParameterSync sync;
+
+	std::vector<ofAbstractParameter*> ignored;
 };
 
 

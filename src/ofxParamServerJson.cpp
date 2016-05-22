@@ -3,9 +3,43 @@
 static std::map<std::string, ofxParamCastOrCreateFunc> paramCastOrCreateHandlers;
 static std::map<std::string, ofxParamToJsonFunc> paramToJsonHandlers;
 static std::map<std::string, ofxParamFromJsonFunc> jsonToParamHandlers;
+static std::map<std::string, ofxParamFromStringFunc> stringToParamHandlers;
 static std::map<std::string, std::string> jsonTypeNames;
-static bool bHandlersSetup = false;
+static bool bJsonHandlersSetup = false;
 
+
+////////////////////////////////////// FROM STRING HELPERS
+
+void fromStringBool(ofAbstractParameter& p, string value){
+	ofParameter<bool>& param = static_cast<ofParameter<bool>&>(p);
+	value = ofToLower(value);
+	if(value == "1" || value == "true" || value == "on"){
+		param = true;
+	}else{
+		param = false;
+	}
+}
+
+void fromStringString(ofAbstractParameter& p, string value){
+	ofParameter<std::string>& param = static_cast<ofParameter<std::string>&>(p);
+	param = value;
+}
+
+template<typename Type>
+void fromStringNum(ofAbstractParameter& p, string value){
+	ofParameter<Type>& param = static_cast<ofParameter<Type>&>(p);
+	Type num;
+	if ( ! (istringstream(value) >> num) ) num = 0;
+	param = num;
+}
+
+void fromString(ofAbstractParameter &param, string value){
+	if(stringToParamHandlers.find(param.type()) == stringToParamHandlers.end()){
+		ofLogWarning("ofxParamServer") << "no from string handler for type " << param.type() << " found";
+		return;
+	}
+	stringToParamHandlers[param.type()](param, value);
+}
 
 ///////////////////////////////////// TO JSON HELPERS
 
@@ -54,7 +88,6 @@ void toJsonMinMax(ofAbstractParameter& p, Json& json){
 	json["value"] = param.get();
 	fillMinMax(param, json);
 }
-
 
 
 ///////////////////////////////////////// FROM JSON HELPERS
@@ -116,27 +149,40 @@ void jsonToVectorGeneric(ofAbstractParameter* p, Json& json){
 }
 
 template<typename VectorType>
+void stringToVectorGeneric(ofAbstractParameter& p, std::string& value){
+	ofParameter<VectorType> param = p.cast<VectorType>();
+	auto valSplit = ofSplitString(value, ",", true, true);
+	VectorType vec;
+	for(unsigned i=0; i<VectorType::DIM; i++){
+		if(valSplit.size() > i){
+			vec[i] = stof(valSplit[i]);
+		}
+	}
+	param = vec;
+}
+
+template<typename VectorType>
 void addVectorType(std::string name){
-	ofxParamServerAddType(typeid(ofParameter<VectorType>).name(), name, &toJsonVector<VectorType>, &jsonToVectorGeneric<VectorType>, &ofxParamServerCastOrCreate<ofParameter<VectorType>>);
+	ofxParamServerAddType(typeid(ofParameter<VectorType>).name(), name, &toJsonVector<VectorType>, &jsonToVectorGeneric<VectorType>, &ofxParamServerCastOrCreate<ofParameter<VectorType>>, &stringToVectorGeneric<VectorType>);
 }
 
 ///////////////////////////////////////////////////////////////
 
 template<typename Type>
-void addTypeGeneric(std::string name){
-	ofxParamServerAddType<ofParameter<Type>>(name, &toJson<Type>, &jsonToGeneric<Type>);
+void addTypeGeneric(std::string name, ofxParamFromStringFunc fromString){
+	ofxParamServerAddType<ofParameter<Type>>(name, &toJson<Type>, &jsonToGeneric<Type>, fromString);
 }
 
 template<typename Type>
 void addTypeGenericMinMax(std::string name){
-	ofxParamServerAddType<ofParameter<Type>>(name, &toJsonMinMax<Type>, &jsonToGeneric<Type>);
+	ofxParamServerAddType<ofParameter<Type>>(name, &toJsonMinMax<Type>, &jsonToGeneric<Type>, &fromStringNum<Type>);
 }
 
 void setupTypeHandlers(){
-	if(bHandlersSetup)
+	if(bJsonHandlersSetup)
 		return;
 
-	bHandlersSetup = true;
+	bJsonHandlersSetup = true;
 
 	//groups are special
 	paramToJsonHandlers[typeid(ofParameterGroup).name()] = &groupToJson;
@@ -144,7 +190,7 @@ void setupTypeHandlers(){
 	paramCastOrCreateHandlers[jsonTypeNames[typeid(ofParameterGroup).name()]] = &ofxParamServerCastOrCreate<ofParameterGroup>;
 
 	//add all basic types
-	addTypeGeneric<bool>("bool");
+	addTypeGeneric<bool>("bool", &fromStringBool);
 
 	addTypeGenericMinMax<int>("int");
 	addTypeGenericMinMax<unsigned>("unsigned");
@@ -152,19 +198,21 @@ void setupTypeHandlers(){
 	addTypeGenericMinMax<double>("double");
 	addTypeGenericMinMax<long>("long");
 
-	addTypeGeneric<std::string>("string");
+	addTypeGeneric<std::string>("string", &fromStringString);
 
 	addVectorType<ofVec2f>("vec2");
 	addVectorType<ofVec3f>("vec3");
 	addVectorType<ofVec4f>("vec4");
 }
 
-void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc){
+void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc, ofxParamFromStringFunc fromStringFunc){
 	setupTypeHandlers();
 	jsonTypeNames[typeName] = niceName;
 	jsonToParamHandlers[niceName] = fromJson;
 	paramToJsonHandlers[typeName] = toJson;
 	paramCastOrCreateHandlers[niceName] = castOrCreateFunc;
+	if(fromStringFunc)
+		stringToParamHandlers[typeName] = fromStringFunc;
 }
 
 
@@ -304,11 +352,14 @@ std::vector<shared_ptr<ofAbstractParameter>> jsonToGroup(Json& json, std::string
 	}
 
 	//check if we have to remove some parameters
+	/*
 	for(auto param: *group){
-		if(findParamByPath(joinList(param->getGroupHierarchyNames(), "/"), ret) == nullptr){
-			group->remove(*param);
+		if(param && findParamByPath(joinList(param->getGroupHierarchyNames(), "/"), ret) == nullptr){
+			if(param != nullptr && group->contains(param->getName()))
+				group->remove(*param);
 		}
 	}
+	*/
 
 	return ret;
 }

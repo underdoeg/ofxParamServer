@@ -1,0 +1,8 @@
+#ifndef OFXPARAMSERVERSTRING_H
+#define OFXPARAMSERVERSTRING_H
+
+#include "ofMain.h"
+
+
+
+#endif // OFXPARAMSERVERSTRING_H

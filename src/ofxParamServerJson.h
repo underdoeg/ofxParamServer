@@ -3,6 +3,7 @@
 
 #include "ofMain.h"
 #include "json.hpp"
+#include "ofxParamServerString.h"
 
 // for convenience
 using Json = nlohmann::json;
@@ -14,9 +15,13 @@ std::vector<shared_ptr<ofAbstractParameter>> syncToJson(std::string jsonStr, std
 std::vector<shared_ptr<ofAbstractParameter>> syncToJson(Json json, std::vector<shared_ptr<ofAbstractParameter>> existingParams = {});
 
 
+void fromString(ofAbstractParameter& param, std::string value);
+/////////////////////////////////////////////////////////////////////////
+
 using ofxParamToJsonFunc = std::function<void(ofAbstractParameter&, Json&)>;
 using ofxParamFromJsonFunc = std::function<void(ofAbstractParameter*, Json&)>;
 using ofxParamCastOrCreateFunc = std::function<shared_ptr<ofAbstractParameter>(shared_ptr<ofAbstractParameter>)>;
+using ofxParamFromStringFunc = std::function<void(ofAbstractParameter&, std::string&)>;
 
 template<typename Type>
 shared_ptr<ofAbstractParameter> ofxParamServerCastOrCreate(shared_ptr<ofAbstractParameter> param){
@@ -29,16 +34,16 @@ shared_ptr<ofAbstractParameter> ofxParamServerCastOrCreate(shared_ptr<ofAbstract
 	return param;
 }
 
-void ofxParamServerAddType(std::string typeName, std::string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc);
+void ofxParamServerAddType(std::string typeName, std::string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc, ofxParamFromStringFunc fromStringFunc);
 
 template<typename Type>
-void ofxParamServerAddType(std::string niceName,ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
-	ofxParamServerAddType(typeid(Type).name(), niceName, toJson, fromJson, &ofxParamServerCastOrCreate<Type>);
+void ofxParamServerAddType(std::string niceName,ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamFromStringFunc fromStringFunc){
+	ofxParamServerAddType(typeid(Type).name(), niceName, toJson, fromJson, &ofxParamServerCastOrCreate<Type>, fromStringFunc);
 }
 
 template<typename Type>
-void ofxParamServerAddType(ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson){
-	ofxParamServerAddType<Type>(typeid(Type).name(), toJson, fromJson);
+void ofxParamServerAddType(ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamFromStringFunc fromStringFunc){
+	ofxParamServerAddType<Type>(typeid(Type).name(), toJson, fromJson, fromStringFunc);
 }
 
 template<typename Type>

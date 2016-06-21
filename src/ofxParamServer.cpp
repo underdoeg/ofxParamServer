@@ -60,7 +60,7 @@ void ofxParamServer::setup(ofParameterGroup& p, const std::string clientIp, int 
 	sync.setup(getParameters(), portLocal, clientIp, portClients);
 
 	ofAddListener(ofEvents().update, this, &ofxParamServer::update);
-	ofLogNotice("ofxParamServer") << "started";
+	ofLogNotice("ofxParamServer") << "started on ports OSC:" << portLocal << " HTTP:" << httpPort;
 }
 
 /*

@@ -203,6 +203,31 @@ void setupTypeHandlers(){
 	addVectorType<ofVec2f>("vec2");
 	addVectorType<ofVec3f>("vec3");
 	addVectorType<ofVec4f>("vec4");
+
+	//add color
+	ofxParamServerAddType(typeid(ofParameter<ofColor>).name(), "color",
+		[](ofAbstractParameter& p, Json& json){
+			ofParameter<ofColor> param = p.cast<ofColor>();
+			json["r"] = param->r;
+			json["g"] = param->g;
+			json["b"] = param->b;
+			json["a"] = param->a;
+		},
+		[](ofAbstractParameter* p, Json& json){
+			ofParameter<ofColor>* param = static_cast<ofParameter<ofColor>*>(p);
+			param->set(ofColor(json["r"], json["g"], json["b"], json["a"]));
+		}, &ofxParamServerCastOrCreate<ofParameter<ofColor>>,
+		[](ofAbstractParameter& p, std::string& value){
+			ofParameter<ofColor> param = p.cast<ofColor>();
+			auto valSplit = ofSplitString(value, ",", true, true);
+			ofColor c;
+			for(unsigned i=0; i<4; i++){
+				if(valSplit.size() > i){
+					c[i] = stof(valSplit[i]);
+				}
+			}
+		}
+	);
 }
 
 void ofxParamServerAddType(string typeName, string niceName, ofxParamToJsonFunc toJson, ofxParamFromJsonFunc fromJson, ofxParamCastOrCreateFunc castOrCreateFunc, ofxParamFromStringFunc fromStringFunc){
